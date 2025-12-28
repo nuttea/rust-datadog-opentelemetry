@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rust-datadog-otel
+  namespace: rust-test
+  labels:
+    app: rust-datadog-otel
+    version: v1
+    tags.datadoghq.com/env: "development"
+    tags.datadoghq.com/service: "rust-datadog-otel"
+    tags.datadoghq.com/version: "0.1.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rust-datadog-otel
+  template:
+    metadata:
+      labels:
+        app: rust-datadog-otel
+        version: v1
+        tags.datadoghq.com/env: "development"
+        tags.datadoghq.com/service: "rust-datadog-otel"
+        tags.datadoghq.com/version: "0.1.0"
+      annotations:
+        # Enable Datadog log collection
+        ad.datadoghq.com/rust-datadog-otel.logs: '[{"source":"rust","service":"rust-datadog-otel"}]'
+    spec:
+      containers:
+      - name: rust-datadog-otel
+        image: gcr.io/datadog-ese-sandbox/rust-datadog-otel:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        # Datadog Unified Service Tagging
+        # Reference: https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/
+        - name: DD_SERVICE
+          value: "rust-datadog-otel"
+        - name: DD_VERSION
+          value: "0.1.0"
+        - name: DD_ENV
+          value: "development"
+        
+        # OpenTelemetry Configuration for Datadog
+        # Reference: https://docs.datadoghq.com/opentelemetry/
+        - name: DD_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://$(HOST_IP):4317"
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: "grpc"
+        
+        # Logging Configuration
+        - name: RUST_LOG
+          value: "info,rust_datadog_otel=debug"
+        - name: DD_LOGS_INJECTION
+          value: "true"
+        
+        # Pod metadata for correlation
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+

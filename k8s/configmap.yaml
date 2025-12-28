@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rust-datadog-otel-config
+  namespace: rust-test
+data:
+  # Application configuration
+  app.config: |
+    {
+      "service_name": "rust-datadog-otel",
+      "environment": "development",
+      "log_level": "info"
+    }
+

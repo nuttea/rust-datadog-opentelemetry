@@ -1,0 +1,11 @@
+target/
+.git/
+.gitignore
+*.md
+.env
+.env.local
+k8s/
+datadog/
+.idea/
+.vscode/
+

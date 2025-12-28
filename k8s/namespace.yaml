@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rust-test
+  labels:
+    name: rust-test
+    env: development
+

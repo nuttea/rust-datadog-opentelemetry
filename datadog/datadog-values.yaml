@@ -1,0 +1,117 @@
+# Datadog Agent Configuration for GKE
+# Deploy with:
+#   helm install datadog-agent -f k8s/datadog/datadog-values.yaml \
+#     --set datadog.clusterName=<CLUSTER_NAME> \
+#     datadog/datadog
+#
+# Note: API keys are stored in Kubernetes secret 'datadog-secret'
+
+datadog:
+  site: "datadoghq.com"
+
+  # Cluster name - REQUIRED: Set via --set datadog.clusterName=<name>
+  # This identifies your cluster in Datadog
+  clusterName: ""
+
+  # API key stored in Kubernetes secret
+  apiKeyExistingSecret: "datadog-secret"
+
+  # Secret Backend Configuration
+  # Enables ENC[k8s_secret@namespace/secret/key] syntax in annotations
+  # Reference: https://docs.datadoghq.com/agent/configuration/secrets-management/
+  secretBackend:
+    command: "/readsecret_multiple_providers.sh"
+
+  # APM with Single Step Instrumentation
+  # SSI is selectively enabled for services with label dd-ssi-js=true
+  apm:
+    instrumentation:
+      enabled: true
+      targets:
+        - name: "mcp-agent-apps-ssi"
+          namespaceSelector:
+            matchNames:
+              - "mcp-agent-dev"
+              - "mcp-agent-prod"
+          podSelector:
+            matchLabels:
+              dd-ssi-js: "true"
+          ddTraceVersions:
+            js: "5"
+          ddTraceConfigs:
+            - name: "DD_PROFILING_ENABLED"
+              value: "auto"
+  
+  # OpenTelemetry Collector (DDOT) Configuration
+  # Enables OTLP ingestion for OpenTelemetry instrumented applications
+  otlp:
+    receiver:
+      protocols:
+        grpc:
+          enabled: true
+          endpoint: "0.0.0.0:4317"
+        http:
+          enabled: true
+          endpoint: "0.0.0.0:4318"
+
+  # Container logs collection
+  logs:
+    enabled: true
+    containerCollectAll: true
+    autoMultiLineDetection: true
+    containerCollectUsingFiles: true
+
+  # Application Security Management (ASM)
+  asm:
+    threats:
+      enabled: true
+    sca:
+      enabled: true
+    iast:
+      enabled: true
+
+  # Security Agent
+  securityAgent:
+    runtime:
+      enabled: true
+    compliance:
+      enabled: true
+
+  # SBOM collection
+  sbom:
+    containerImage:
+      enabled: true
+    host:
+      enabled: true
+
+  # Service Monitoring (Universal Service Monitoring)
+  serviceMonitoring:
+    enabled: true
+
+  # Network Performance Monitoring
+  networkMonitoring:
+    enabled: true
+
+  # Process Agent
+  processAgent:
+    processCollection: true
+
+# Cluster Agent for advanced orchestrator features and autodiscovery
+clusterAgent:
+  enabled: true
+  replicas: 2
+  pdb:
+    create: true
+
+  # Enable cluster checks for database monitoring
+  clusterChecksRunner:
+    enabled: true
+    replicas: 2
+
+# Use GCR registry for Datadog images
+registry: "gcr.io/datadoghq"
+
+# GKE provider configuration
+providers:
+  gke:
+    cos: true

@@ -1,0 +1,36 @@
+[package]
+name = "rust-datadog-otel"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"  # Required by datadog-opentelemetry dependencies (rmp crate)
+
+[dependencies]
+# Web framework - using latest stable versions
+# Axum is actively maintained by the Tokio team
+axum = "0.7"
+tokio = { version = "1.42", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+
+# Serialization - industry standard, well-audited
+serde = { version = "1.0.216", features = ["derive"] }
+serde_json = "1.0.133"
+
+# Datadog APM - Official Datadog OpenTelemetry SDK
+# Reference: https://docs.datadoghq.com/tracing/trace_collection/custom_instrumentation/rust
+datadog-opentelemetry = "0.2.1"
+
+# OpenTelemetry - Core API and SDK (required by datadog-opentelemetry)
+opentelemetry = { version = "0.31", features = ["trace", "logs"] }
+opentelemetry_sdk = "0.31"  # For TracerProvider concrete type with shutdown_with_timeout
+
+# Tracing integration - Bridge between tracing and OpenTelemetry
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.32"
+
+# Additional utilities - latest stable versions
+uuid = { version = "1.11", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
+

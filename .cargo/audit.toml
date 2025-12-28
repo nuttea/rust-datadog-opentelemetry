@@ -1,0 +1,21 @@
+# cargo-audit configuration
+[advisories]
+# Ignore advisories for specific IDs
+ignore = [
+    # Example: "RUSTSEC-2020-0001",
+]
+
+[database]
+# Path to the advisory database
+path = "~/.cargo/advisory-db"
+# URL to the advisory database
+url = "https://github.com/rustsec/advisory-db.git"
+
+[output]
+# Output format: "terminal", "json", or "json-pretty"
+format = "terminal"
+# Show color in output
+color = "auto"
+# Print a warning if an advisory is informational
+show-informational = true
+

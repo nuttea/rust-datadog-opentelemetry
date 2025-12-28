@@ -1,0 +1,310 @@
+# Cursor AI Rules for rust-datadog-opentelemetry
+
+## Project Overview
+This is a Rust backend API demonstrating Datadog's official OpenTelemetry SDK integration.
+- **Language**: Rust 1.85+
+- **Framework**: Axum 0.7 with Tokio async runtime
+- **Observability**: datadog-opentelemetry 0.2.1 SDK
+- **Deployment**: Kubernetes (GKE) with Datadog Agent
+
+## Core Principles
+
+### 1. Documentation Organization
+ALWAYS organize documentation in the following structure:
+```
+docs/
+├── README.md                  # Documentation index
+├── guides/                    # User-facing how-to guides
+├── architecture/              # Technical implementation details
+├── security/                  # Security policies and audits
+└── development/              # Development notes and troubleshooting
+```
+
+**Rules:**
+- New guides → `docs/guides/`
+- Architecture docs → `docs/architecture/`
+- Security docs → `docs/security/`
+- Dev notes → `docs/development/`
+- NEVER put docs in root (except README.md, LICENSE)
+- Update `docs/README.md` when adding new docs
+- Update main `README.md` if major addition
+
+### 2. Datadog SDK Patterns
+
+**ALWAYS follow official Datadog pattern:**
+```rust
+// Correct - Official Pattern
+let tracer_provider = datadog_opentelemetry::tracing().init();
+let tracer = global::tracer("component-name");
+// ... application code ...
+tracer_provider.shutdown().expect("shutdown error");
+```
+
+**NEVER do:**
+```rust
+// Wrong - Don't use tracer from provider directly
+let tracer = tracer_provider.tracer("name");
+```
+
+**Key points:**
+- Use `global::tracer()` NOT `tracer_provider.tracer()`
+- Return `SdkTracerProvider` from init for shutdown
+- Call `shutdown()` before application exit
+- Use DD_* environment variables for configuration
+
+### 3. Version Requirements
+
+**Strict version requirements:**
+```toml
+rust-version = "1.85"  # Required by rmp dependency
+datadog-opentelemetry = "0.2.1"
+opentelemetry = "0.31"
+opentelemetry_sdk = "0.31"
+tracing-opentelemetry = "0.32"
+```
+
+**NEVER:**
+- Downgrade Rust below 1.85 (rmp needs edition2024)
+- Mix OpenTelemetry versions
+- Use opentelemetry_api (deprecated)
+
+### 4. Cross-Platform Builds
+
+**For Docker builds:**
+- ALWAYS build for `linux/amd64` (x86_64)
+- Use `docker buildx` on Apple Silicon
+- Add platform detection in build scripts
+- Document Apple Silicon requirements
+
+**Example:**
+```bash
+# Auto-detect and build for correct platform
+if [ "$(uname -m)" = "arm64" ]; then
+    docker buildx build --platform linux/amd64 ...
+fi
+```
+
+### 5. Security Practices
+
+**ALWAYS:**
+- Run `cargo audit` before releases
+- Check dependencies with `cargo deny`
+- Use `.env.example` for templates, `.env` for secrets
+- Add `.env` to `.gitignore`
+- Use non-root user in Docker
+- Pin dependency versions
+- Document security updates in `docs/security/`
+
+**NEVER:**
+- Commit `.env` files
+- Use `latest` tags in production
+- Skip security audits
+- Hardcode credentials
+
+### 6. Code Style
+
+**Rust conventions:**
+```rust
+// Use #[instrument] for tracing
+#[instrument(skip(_state))]
+async fn handler(State(_state): State<Arc<AppState>>) -> impl IntoResponse {
+    // ... handler code
+}
+
+// Proper error handling with anyhow
+fn function() -> Result<T, Box<dyn std::error::Error>> {
+    // ... code
+}
+
+// Graceful shutdown
+let result = axum::serve(listener, app)
+    .with_graceful_shutdown(shutdown_signal())
+    .await;
+telemetry::shutdown_telemetry(tracer_provider);
+```
+
+**ALWAYS:**
+- Use `#[instrument]` for traced functions
+- Skip large/non-Debug params with `skip(param)`
+- Add `#[derive(Debug)]` to structs used in instrumentation
+- Use `.into_response()` for mixed return types
+- Handle graceful shutdown with Ctrl+C signal
+
+### 7. Kubernetes Configuration
+
+**Environment variables:**
+```yaml
+# Datadog Unified Service Tagging (REQUIRED)
+- name: DD_SERVICE
+  value: "service-name"
+- name: DD_VERSION
+  value: "version"
+- name: DD_ENV
+  value: "environment"
+
+# Agent connection
+- name: DD_AGENT_HOST
+  valueFrom:
+    fieldRef:
+      fieldPath: status.hostIP
+```
+
+**ALWAYS:**
+- Use DD_* prefixed vars for Datadog
+- Get DD_AGENT_HOST from status.hostIP
+- Add Datadog labels to all K8s resources
+- Use ClusterIP service with port-forward for testing
+- Add resource limits and requests
+
+### 8. File Naming Conventions
+
+**Documentation:**
+- UPPER_SNAKE_CASE.md (e.g., `API_GUIDE.md`)
+- Be descriptive but concise
+- Use consistent naming within categories
+
+**Code:**
+- snake_case for files (e.g., `telemetry.rs`)
+- PascalCase for types
+- snake_case for functions and variables
+
+### 9. Error Handling
+
+**Compilation errors:**
+- Check OpenTelemetry version compatibility
+- Verify trait imports (e.g., `TracerProvider as _`)
+- Use `impl Trait` or concrete types, not `dyn Trait` in returns
+- Check for API changes in dependencies
+
+**Runtime errors:**
+- Log with appropriate level (debug/info/warn/error)
+- Use structured logging with fields
+- Include trace context in logs
+- Handle graceful degradation
+
+### 10. Testing and Validation
+
+**Before committing:**
+```bash
+# Build check
+cargo build
+cargo build --release
+
+# Security audit
+cargo audit
+cargo deny check
+
+# Formatting
+cargo fmt --check
+
+# Clippy
+cargo clippy -- -D warnings
+```
+
+**Docker:**
+```bash
+# Build (auto-detects platform)
+./scripts/build-and-push.sh
+
+# Verify platform
+docker inspect IMAGE | grep Architecture
+# Should show: "Architecture": "amd64"
+```
+
+## Common Tasks
+
+### Adding New Documentation
+1. Determine category (guides/architecture/security/development)
+2. Create file in appropriate `docs/` subdirectory
+3. Update `docs/README.md` with entry
+4. Update main `README.md` if user-facing
+5. Use proper Markdown formatting
+
+### Adding Dependencies
+1. Check compatibility with OpenTelemetry 0.31
+2. Verify Rust 1.85+ compatibility
+3. Run `cargo audit` and `cargo deny check`
+4. Update `docs/security/DEPENDENCIES.md`
+5. Document in `docs/architecture/VERSION_COMPATIBILITY.md` if major
+
+### Updating Datadog Integration
+1. Follow official Datadog Rust docs
+2. Test locally first
+3. Update `docs/architecture/DATADOG_SDK_IMPLEMENTATION.md`
+4. Verify trace propagation works
+5. Test graceful shutdown
+
+### Handling Build Issues
+1. Check Rust version (must be 1.85+)
+2. Verify OpenTelemetry version alignment
+3. Check for edition2024 requirements
+4. Review `docs/development/` for known issues
+5. Document solution in `docs/development/`
+
+## Anti-Patterns to Avoid
+
+**DON'T:**
+- ❌ Put documentation in project root
+- ❌ Use deprecated opentelemetry_api
+- ❌ Build ARM64 images for cloud deployment
+- ❌ Forget to shutdown tracer provider
+- ❌ Use external IPs for testing (use port-forward)
+- ❌ Hardcode configuration values
+- ❌ Skip error handling
+- ❌ Ignore compiler warnings
+- ❌ Use blocking operations in async code
+- ❌ Forget to update documentation
+
+## Quick Reference
+
+**Environment Setup:**
+```bash
+source .env
+export DD_SERVICE=rust-datadog-otel
+export DD_ENV=development
+```
+
+**Local Run:**
+```bash
+./scripts/local-run.sh
+```
+
+**Build & Deploy:**
+```bash
+./scripts/build-and-push.sh
+./scripts/deploy.sh
+./scripts/port-forward.sh
+```
+
+**Documentation:**
+- Start: `docs/README.md`
+- Guides: `docs/guides/`
+- Technical: `docs/architecture/DATADOG_SDK_IMPLEMENTATION.md`
+
+## Project-Specific Context
+
+### This project demonstrates:
+- Official Datadog OpenTelemetry SDK integration
+- Proper trace propagation and correlation
+- Structured logging with trace context
+- Kubernetes deployment with Datadog Agent
+- Cross-platform Docker builds
+- Security best practices
+- Comprehensive documentation
+
+### Key differentiators:
+- Uses official `datadog-opentelemetry` SDK (not generic OTLP)
+- Follows official Datadog patterns exactly
+- Supports Apple Silicon builds automatically
+- Well-organized documentation structure
+- Production-ready configuration
+
+### When helping with this project:
+1. Consult existing documentation first
+2. Follow established patterns
+3. Update documentation when making changes
+4. Maintain version compatibility
+5. Consider cross-platform implications
+6. Prioritize security and best practices
+7. Keep code and docs in sync
+
