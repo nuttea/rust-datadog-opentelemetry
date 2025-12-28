@@ -32,6 +32,7 @@ docs/
 | [Deployment Guide](guides/DEPLOYMENT.md) | Step-by-step deployment to GKE | DevOps, Developers |
 | [Environment Setup](guides/ENV_SETUP.md) | Configure environment variables | All users |
 | [Port Forward Guide](guides/PORT_FORWARD_GUIDE.md) | Local testing without external IPs | Developers |
+| [Implementing Trace Correlation](guides/IMPLEMENTING_TRACE_CORRELATION.md) | 🔧 Fix trace-log correlation (2-4hrs) | Developers |
 | [Trace-Log Correlation](guides/TRACE_LOG_CORRELATION.md) | 🔗 Verify trace and log correlation | Developers, DevOps |
 | [Apple Silicon Build](guides/APPLE_SILICON_BUILD.md) | 🍎 Building on M1/M2/M3 Macs | Mac users |
 | [Security Quick Start](guides/QUICK_START_SECURITY.md) | Essential security commands | DevOps, Security |
@@ -43,6 +44,7 @@ docs/
 | Document | Purpose | Audience |
 |----------|---------|----------|
 | [Datadog SDK Implementation](architecture/DATADOG_SDK_IMPLEMENTATION.md) | **⭐ MAIN GUIDE** - Official Datadog SDK setup | All developers |
+| [Trace-Log Correlation Plan](architecture/TRACE_LOG_CORRELATION_IMPLEMENTATION.md) | 📋 Implementation plan for correlation | Developers |
 | [Official Pattern Update](architecture/OFFICIAL_PATTERN_UPDATE.md) | Recent update to match Datadog docs | Developers |
 | [Version Compatibility](architecture/VERSION_COMPATIBILITY.md) | Version requirements and tracking | Developers, DevOps |
 
@@ -65,6 +67,7 @@ docs/
 | [Compilation Fix Summary](development/COMPILATION_FIX_SUMMARY.md) | OpenTelemetry 0.31 migration | Developers |
 | [Datadog APM Update](development/DATADOG_APM_UPDATE.md) | APM implementation evolution | Developers |
 | [Correlation Analysis](development/CORRELATION_ANALYSIS.md) | 🔍 Live Datadog trace-log analysis | Developers, DevOps |
+| [Field Structure Fix](development/FIELD_STRUCTURE_FIX.md) | ⚠️ Critical JSON field placement fix | Developers, DevOps |
 | [Environment Migration](development/ENV_MIGRATION_SUMMARY.md) | Environment variable changes | DevOps |
 
 ## 🎯 Common Tasks

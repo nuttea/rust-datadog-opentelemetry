@@ -9,9 +9,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 use tower_http::cors::CorsLayer;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::instrument;
 
 mod telemetry;
+mod trace_context;
 
 // Application state
 #[derive(Debug, Clone)]
@@ -75,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Store the tracer provider to shutdown properly on exit
     let tracer_provider = telemetry::init_telemetry()?;
 
-    info!("Starting Rust Datadog OpenTelemetry Demo Application");
+    info_trace!("Starting Rust Datadog OpenTelemetry Demo Application");
 
     let state = AppState {
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -97,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start server
     let addr = "0.0.0.0:8080";
-    info!("Server listening on {}", addr);
+    info_trace!("Server listening on {}", addr);
     
     let listener = tokio::net::TcpListener::bind(addr).await?;
     
@@ -118,12 +119,12 @@ async fn shutdown_signal() {
     tokio::signal::ctrl_c()
         .await
         .expect("failed to install CTRL+C signal handler");
-    info!("Shutdown signal received, shutting down gracefully...");
+    info_trace!("Shutdown signal received, shutting down gracefully...");
 }
 
 #[instrument]
 async fn root() -> impl IntoResponse {
-    info!("Root endpoint called");
+    info_trace!("Root endpoint called");
     Json(serde_json::json!({
         "message": "Rust Datadog OpenTelemetry Demo API",
         "version": env!("CARGO_PKG_VERSION"),
@@ -142,7 +143,7 @@ async fn root() -> impl IntoResponse {
 
 #[instrument]
 async fn health(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    info!("Health check called");
+    info_trace!("Health check called");
     
     Json(HealthResponse {
         status: "healthy".to_string(),
@@ -156,7 +157,7 @@ async fn create_user(
     State(_state): State<Arc<AppState>>,
     Json(payload): Json<CreateUserRequest>,
 ) -> impl IntoResponse {
-    info!(
+    info_trace!(
         user_name = %payload.name,
         user_email = %payload.email,
         "Creating new user"
@@ -164,7 +165,7 @@ async fn create_user(
 
     // Simulate validation
     if payload.name.is_empty() {
-        warn!("User creation failed: empty name");
+        warn_trace!("User creation failed: empty name");
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"error": "Name cannot be empty"})),
@@ -179,25 +180,25 @@ async fn create_user(
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    info!(user_id = %user.id, "User created successfully");
+    info_trace!(user_id = %user.id, "User created successfully");
     
     (StatusCode::CREATED, Json(user)).into_response()
 }
 
 #[instrument]
 async fn get_user(Path(id): Path<String>) -> impl IntoResponse {
-    info!(user_id = %id, "Fetching user");
+    info_trace!(user_id = %id, "Fetching user");
 
     // Simulate database lookup with nested span
     let user = fetch_user_from_database(&id).await;
 
     match user {
         Some(user) => {
-            debug!(user_id = %id, "User found");
+            debug_trace!(user_id = %id, "User found");
             (StatusCode::OK, Json(user)).into_response()
         }
         None => {
-            warn!(user_id = %id, "User not found");
+            warn_trace!(user_id = %id, "User not found");
             (
                 StatusCode::NOT_FOUND,
                 Json(serde_json::json!({"error": "User not found"})),
@@ -212,7 +213,7 @@ async fn fetch_user_from_database(id: &str) -> Option<User> {
     // Simulate database query delay
     tokio::time::sleep(Duration::from_millis(50)).await;
     
-    debug!(user_id = %id, "Querying database for user");
+    debug_trace!(user_id = %id, "Querying database for user");
 
     // Mock user data
     Some(User {
@@ -228,7 +229,7 @@ async fn create_order(
     State(_state): State<Arc<AppState>>,
     Json(payload): Json<OrderRequest>,
 ) -> impl IntoResponse {
-    info!(
+    info_trace!(
         user_id = %payload.user_id,
         item_count = payload.items.len(),
         "Creating new order"
@@ -236,7 +237,7 @@ async fn create_order(
 
     // Validate order
     if payload.items.is_empty() {
-        warn!("Order creation failed: no items");
+        warn_trace!("Order creation failed: no items");
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"error": "Order must contain at least one item"})),
@@ -264,34 +265,34 @@ async fn create_order(
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    info!(order_id = %order.order_id, total_amount = %total_amount, "Order created successfully");
+    info_trace!(order_id = %order.order_id, total_amount = %total_amount, "Order created successfully");
 
     (StatusCode::CREATED, Json(order)).into_response()
 }
 
 #[instrument]
 async fn process_payment(user_id: &str, amount: f64) {
-    info!(user_id = %user_id, amount = %amount, "Processing payment");
+    info_trace!(user_id = %user_id, amount = %amount, "Processing payment");
     
     // Simulate payment gateway call
     tokio::time::sleep(Duration::from_millis(100)).await;
     
-    debug!("Payment processed successfully");
+    debug_trace!("Payment processed successfully");
 }
 
 #[instrument]
 async fn check_inventory(items: &[OrderItem]) {
-    info!(item_count = items.len(), "Checking inventory");
+    info_trace!(item_count = items.len(), "Checking inventory");
     
     // Simulate inventory check
     tokio::time::sleep(Duration::from_millis(75)).await;
     
-    debug!("Inventory check completed");
+    debug_trace!("Inventory check completed");
 }
 
 #[instrument]
 async fn get_order(Path(id): Path<String>) -> impl IntoResponse {
-    info!(order_id = %id, "Fetching order");
+    info_trace!(order_id = %id, "Fetching order");
 
     // Simulate database lookup
     tokio::time::sleep(Duration::from_millis(50)).await;
@@ -304,7 +305,7 @@ async fn get_order(Path(id): Path<String>) -> impl IntoResponse {
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    debug!(order_id = %id, "Order found");
+    debug_trace!(order_id = %id, "Order found");
     Json(order)
 }
 
@@ -316,11 +317,11 @@ async fn simulate_error(Query(params): Query<ErrorSimulationQuery>) -> impl Into
         &params.error_type
     };
 
-    error!(error_type = %error_type, "Simulating error");
+    error_trace!(error_type = %error_type, "Simulating error");
 
     match error_type {
         "timeout" => {
-            warn!("Simulating timeout error");
+            warn_trace!("Simulating timeout error");
             tokio::time::sleep(Duration::from_secs(30)).await;
             (
                 StatusCode::REQUEST_TIMEOUT,
@@ -328,21 +329,21 @@ async fn simulate_error(Query(params): Query<ErrorSimulationQuery>) -> impl Into
             )
         }
         "server" => {
-            error!("Simulating internal server error");
+            error_trace!("Simulating internal server error");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": "Internal server error"})),
             )
         }
         "database" => {
-            error!("Simulating database connection error");
+            error_trace!("Simulating database connection error");
             (
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(serde_json::json!({"error": "Database connection failed"})),
             )
         }
         _ => {
-            error!("Simulating generic error");
+            error_trace!("Simulating generic error");
             (
                 StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({"error": "Bad request"})),
@@ -353,15 +354,15 @@ async fn simulate_error(Query(params): Query<ErrorSimulationQuery>) -> impl Into
 
 #[instrument]
 async fn slow_operation() -> impl IntoResponse {
-    info!("Starting slow operation");
+    info_trace!("Starting slow operation");
 
     // Simulate multiple slow steps
     for i in 1..=5 {
-        debug!(step = i, "Processing step");
+        debug_trace!(step = i, "Processing step");
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
 
-    info!("Slow operation completed");
+    info_trace!("Slow operation completed");
 
     Json(serde_json::json!({
         "message": "Slow operation completed",
@@ -371,14 +372,14 @@ async fn slow_operation() -> impl IntoResponse {
 
 #[instrument]
 async fn database_query() -> impl IntoResponse {
-    info!("Executing database query");
+    info_trace!("Executing database query");
 
     // Simulate complex database query with multiple operations
     query_users_table().await;
     query_orders_table().await;
     join_user_orders().await;
 
-    info!("Database query completed");
+    info_trace!("Database query completed");
 
     Json(serde_json::json!({
         "message": "Database query completed",
@@ -388,19 +389,19 @@ async fn database_query() -> impl IntoResponse {
 
 #[instrument]
 async fn query_users_table() {
-    debug!("Querying users table");
+    debug_trace!("Querying users table");
     tokio::time::sleep(Duration::from_millis(80)).await;
 }
 
 #[instrument]
 async fn query_orders_table() {
-    debug!("Querying orders table");
+    debug_trace!("Querying orders table");
     tokio::time::sleep(Duration::from_millis(120)).await;
 }
 
 #[instrument]
 async fn join_user_orders() {
-    debug!("Joining user and order data");
+    debug_trace!("Joining user and order data");
     tokio::time::sleep(Duration::from_millis(150)).await;
 }
 

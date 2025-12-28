@@ -59,6 +59,7 @@ pub fn init_telemetry() -> Result<SdkTracerProvider, Box<dyn std::error::Error>>
         .with(
             tracing_subscriber::fmt::layer()
                 .json()
+                .flatten_event(true)  // ✅ Flatten fields to root level for Datadog
                 .with_current_span(true)
                 .with_span_list(true)
                 .with_target(true)
